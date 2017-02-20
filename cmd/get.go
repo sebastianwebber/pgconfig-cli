@@ -50,6 +50,50 @@ func jsonPrettyPrint(in string) string {
 	return out.String()
 }
 
+func CallAPI(
+	pgVersion string,
+	totalRAM int,
+	maxConnections int,
+	environmentName string,
+	osType string,
+	arch string,
+	format string,
+	includePGBadger bool,
+	logFormat string,
+	pretty bool) string {
+	// https: //api.pgconfig.org/v1/tuning/get-config?enviroment_name=Desktop&format=json&include_pgbadger=true&log_format=stderr&max_connections=100&pg_version=9.5&total_ram=29GB
+
+	restParms := map[string]string{
+		"pg_version":       pgVersion,
+		"total_ram":        strconv.Itoa(totalRAM) + "GB",
+		"max_connections":  strconv.Itoa(maxConnections),
+		"environment_name": environmentName,
+		"os_type":          osType,
+		"arch":             arch,
+		"format":           format,
+		"include_pgbadger": strconv.FormatBool(includePGBadger),
+		"log_format":       logFormat,
+	}
+
+	// fmt.Println(restParms, pretty)
+
+	resp, err := resty.R().
+		SetQueryParams(restParms).
+		Get("https://api.pgconfig.org/v1/tuning/get-config")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	output := resp.String()
+
+	if pretty == true {
+		output = jsonPrettyPrint(output)
+	}
+
+	return output
+}
+
 // getCmd represents the get command
 var getCmd = &cobra.Command{
 	Use:   "get",
@@ -57,46 +101,19 @@ var getCmd = &cobra.Command{
 	Long:  `Get the configuration from the pgconfig api`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		// https: //api.pgconfig.org/v1/tuning/get-config?enviroment_name=Desktop&format=json&include_pgbadger=true&log_format=stderr&max_connections=100&pg_version=9.5&total_ram=29GB
-
-		restParms := map[string]string{
-			"pg_version":       pgVersion,
-			"total_ram":        strconv.Itoa(totalRAM) + "GB",
-			"max_connections":  strconv.Itoa(maxConnections),
-			"environment_name": environmentName,
-			"os_type":          osType,
-			"arch":             arch,
-			"format":           format,
-			"include_pgbadger": strconv.FormatBool(includePGBadger),
-			"log_format":       logFormat,
-		}
-
-		fmt.Println(restParms, pretty)
-
-		resp, err := resty.R().
-			SetQueryParams(restParms).
-			Get("https://api.pgconfig.org/v1/tuning/get-config")
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		output := resp.String()
-
-		if pretty == true {
-			fmt.Println("asfasasfs")
-			output = jsonPrettyPrint(output)
-		}
+		output := CallAPI(
+			pgVersion,
+			totalRAM,
+			maxConnections,
+			environmentName,
+			osType,
+			arch,
+			format,
+			includePGBadger,
+			logFormat,
+			pretty)
 
 		fmt.Println(output)
-
-		// explore response object
-		// fmt.Printf("\nError: %v", err)
-		// fmt.Printf("\nResponse Status Code: %v", resp.StatusCode())
-		// fmt.Printf("\nResponse Status: %v", resp.Status())
-		// fmt.Printf("\nResponse Time: %v", resp.Time())
-		// fmt.Printf("\nResponse Recevied At: %v", resp.ReceivedAt())
-		// fmt.Printf("\nResponse Body: %v", resp) // or resp.String() or string(resp.Body())
 	},
 }
 
@@ -123,7 +140,7 @@ func init() {
 	getCmd.Flags().StringVarP(&arch, "arch", "a", arch, "Operating system arch")
 	getCmd.Flags().StringVarP(&format, "format", "f", format, "output format")
 	getCmd.Flags().BoolVarP(&includePGBadger, "include-pgbadger", "b", includePGBadger, "Include PGBadger configuration")
-	getCmd.Flags().StringVarP(&format, "log-format", "l", logFormat, "Log format (if included pgbadger stuff)")
+	getCmd.Flags().StringVarP(&logFormat, "log-format", "l", logFormat, "Log format (if included pgbadger stuff)")
 
 	getCmd.Flags().BoolVarP(&pretty, "pretty", "P", pretty, "format output (json only)")
 
